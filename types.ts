@@ -6,8 +6,8 @@ export enum CaptionStyle {
 
 export enum GeminiModel {
   FLASH = 'gemini-2.5-flash',
-  LITE = 'gemini-2.5-flash-lite',
-  PRO_2_5 = 'gemini-2.5-pro',
+  LITE = 'gemini-flash-lite-latest',
+  PRO_2_5 = 'gemini-2.5-pro-preview-09-2025',
   PRO_3_0 = 'gemini-3-pro-preview',
 }
 

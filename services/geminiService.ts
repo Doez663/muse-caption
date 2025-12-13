@@ -172,6 +172,7 @@ export const generateCaptions = async (
   
   // BYOK Logic: Check LocalStorage first, then Env Var
   const userKey = localStorage.getItem('user_gemini_key');
+  
   const envKey = process.env.API_KEY;
   const apiKey = userKey || envKey;
 

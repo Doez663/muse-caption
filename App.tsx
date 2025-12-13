@@ -557,6 +557,7 @@ const App: React.FC = () => {
   const handleToggleModel = () => {
     playSound.click();
     setCurrentModel(prev => {
+        // Updated cycle logic: 3.0 -> 2.5 Pro -> Flash -> Lite -> 3.0
         if (prev === GeminiModel.PRO_3_0) return GeminiModel.PRO_2_5;
         if (prev === GeminiModel.PRO_2_5) return GeminiModel.FLASH;
         if (prev === GeminiModel.FLASH) return GeminiModel.LITE;
@@ -567,9 +568,9 @@ const App: React.FC = () => {
   const getModelLabel = (m: string) => {
       switch(m) {
           case GeminiModel.PRO_3_0: return 'ULTRA (3.0 PRO)';
-          case GeminiModel.PRO_2_5: return 'PRECISION (2.5 PRO)';
+          case GeminiModel.PRO_2_5: return 'PRO (2.5 PREVIEW)';
           case GeminiModel.FLASH: return 'TURBO (2.5 FLASH)';
-          case GeminiModel.LITE: return 'LITE (2.5 LITE)';
+          case GeminiModel.LITE: return 'LITE (FLASH LITE)';
           default: return m.replace('gemini-', '').toUpperCase();
       }
   };
