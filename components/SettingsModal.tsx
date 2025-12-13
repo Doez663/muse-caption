@@ -38,7 +38,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         
         {/* Header */}
         <div className="bg-black text-white px-3 py-2 flex justify-between items-center select-none">
-          <span className="text-xs uppercase tracking-wider font-bold">>> SYSTEM_CONFIG // KEY_AUTH</span>
+          <span className="text-xs uppercase tracking-wider font-bold">&gt;&gt; SYSTEM_CONFIG // KEY_AUTH</span>
           <button onClick={onClose} className="hover:text-red-400 text-xs font-bold">[X]</button>
         </div>
 
@@ -75,7 +75,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               rel="noreferrer"
               className="text-[9px] text-gray-500 hover:text-blue-600 hover:underline mt-1 inline-block"
             >
-              >> GET KEY @ GOOGLE AI STUDIO
+              &gt;&gt; GET KEY @ GOOGLE AI STUDIO
             </a>
           </div>
 

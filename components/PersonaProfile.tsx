@@ -156,7 +156,7 @@ export const PersonaProfile: React.FC<PersonaProfileProps> = ({
         
         {/* Retro Window Header */}
         <div className="bg-blue-700 text-white px-2 py-1 flex justify-between items-center border-b border-black select-none shrink-0">
-          <span className="text-[10px] uppercase tracking-wider">>> IDENTITY_CONFIG_TOOL.EXE</span>
+          <span className="text-[10px] uppercase tracking-wider">&gt;&gt; IDENTITY_CONFIG_TOOL.EXE</span>
           <button 
             onClick={handleOnClose} 
             className="hover:bg-red-600 px-2 h-full flex items-center text-[10px] border-l border-blue-800"
@@ -171,7 +171,7 @@ export const PersonaProfile: React.FC<PersonaProfileProps> = ({
             {/* SIDEBAR: LIST */}
             <div className="w-1/3 min-w-[220px] bg-gray-200 border-r border-black flex flex-col">
                 <div className="p-2 border-b border-gray-300 text-[10px] text-gray-500 font-bold uppercase">
-                    >> DATABASE_ENTRIES
+                    &gt;&gt; DATABASE_ENTRIES
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-2 space-y-2 no-scrollbar">
@@ -238,7 +238,7 @@ export const PersonaProfile: React.FC<PersonaProfileProps> = ({
                              </button>
                          ) : (
                              <div className="px-3 py-1 bg-green-100 border border-green-600 text-green-800 text-[10px] font-bold uppercase">
-                                >> SYSTEM_ACTIVE
+                                &gt;&gt; SYSTEM_ACTIVE
                              </div>
                          )}
 
@@ -257,7 +257,7 @@ export const PersonaProfile: React.FC<PersonaProfileProps> = ({
                     {/* Section 1: Core Data */}
                     <div>
                         <div className="text-[10px] text-gray-500 mb-3 border-b border-gray-300 pb-1 uppercase">
-                        > SECTION_01: CORE_ATTRIBUTES
+                        &gt; SECTION_01: CORE_ATTRIBUTES
                         </div>
                         
                         <div className="flex items-start gap-6">
@@ -328,14 +328,14 @@ export const PersonaProfile: React.FC<PersonaProfileProps> = ({
                     {/* Section 2: Style */}
                     <div>
                         <div className="text-[10px] text-gray-500 mb-2 border-b border-gray-300 pb-1 uppercase">
-                        > SECTION_02: STYLE_PARAMETERS
+                        &gt; SECTION_02: STYLE_PARAMETERS
                         </div>
                         
                         <div className="mb-4">
                             <label className="text-[10px] uppercase text-blue-700 mb-1 font-bold block">AESTHETIC_MODE</label>
                             <input name="aesthetic" value={formData.aesthetic || ''} onChange={handleChange} className="w-full bg-white border border-gray-400 p-2 text-xs outline-none mb-2"/>
                             <div className="flex flex-wrap gap-2 p-2 bg-gray-200 border border-gray-300">
-                                <span className="text-[9px] text-gray-500 w-full mb-1">>> PRESETS:</span>
+                                <span className="text-[9px] text-gray-500 w-full mb-1">&gt;&gt; PRESETS:</span>
                                 {AESTHETIC_TAGS.map(tag => (
                                 <button key={tag} onClick={() => handleTagClick('aesthetic', tag)} className="text-[10px] border border-gray-400 bg-white px-2 py-px hover:bg-black hover:text-white transition-colors">[{tag}]</button>
                                 ))}
@@ -346,7 +346,7 @@ export const PersonaProfile: React.FC<PersonaProfileProps> = ({
                             <label className="text-[10px] uppercase text-blue-700 mb-1 font-bold block">VOICE_MODULATION</label>
                             <input name="voiceTone" value={formData.voiceTone || ''} onChange={handleChange} className="w-full bg-white border border-gray-400 p-2 text-xs outline-none mb-2"/>
                             <div className="flex flex-wrap gap-2 p-2 bg-gray-200 border border-gray-300">
-                                <span className="text-[9px] text-gray-500 w-full mb-1">>> PRESETS:</span>
+                                <span className="text-[9px] text-gray-500 w-full mb-1">&gt;&gt; PRESETS:</span>
                                 {TONE_TAGS.map(tag => (
                                 <button key={tag} onClick={() => handleTagClick('voiceTone', tag)} className="text-[10px] border border-gray-400 bg-white px-2 py-px hover:bg-black hover:text-white transition-colors">[{tag}]</button>
                                 ))}
@@ -357,7 +357,7 @@ export const PersonaProfile: React.FC<PersonaProfileProps> = ({
                             <label className="text-[10px] uppercase text-blue-700 mb-1 font-bold block">EMOJI_PREFERENCE</label>
                             <input name="emojiStyle" value={formData.emojiStyle || ''} onChange={handleChange} placeholder="e.g. Minimalist" className="w-full bg-white border border-gray-400 p-2 text-xs outline-none mb-2"/>
                             <div className="flex flex-wrap gap-2 p-2 bg-gray-200 border border-gray-300">
-                                <span className="text-[9px] text-gray-500 w-full mb-1">>> PRESETS:</span>
+                                <span className="text-[9px] text-gray-500 w-full mb-1">&gt;&gt; PRESETS:</span>
                                 {EMOJI_PRESETS.map((preset) => (
                                 <button key={preset.label} onClick={() => handleTagClick('emojiStyle', preset.value)} className="text-[10px] border border-gray-400 bg-white px-2 py-px hover:bg-black hover:text-white transition-colors">[{preset.label}]</button>
                                 ))}
@@ -368,7 +368,7 @@ export const PersonaProfile: React.FC<PersonaProfileProps> = ({
                     {/* Section 3: Logic */}
                     <div>
                         <div className="text-[10px] text-gray-500 mb-2 border-b border-gray-300 pb-1 uppercase">
-                        > SECTION_03: BACKGROUND_LOGIC
+                        &gt; SECTION_03: BACKGROUND_LOGIC
                         </div>
                         <textarea 
                         name="bio"

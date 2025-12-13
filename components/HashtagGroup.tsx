@@ -21,7 +21,7 @@ export const HashtagGroup: React.FC<HashtagGroupProps> = ({ hashtags }) => {
   return (
     <div className="p-3 font-mono text-xs">
       <div className="text-gray-500 mb-2 uppercase">
-        <span className="font-bold">> KEYWORDS_ARRAY</span> [{hashtags.length}]
+        <span className="font-bold">&gt; KEYWORDS_ARRAY</span> [{hashtags.length}]
       </div>
       <div className="flex flex-wrap gap-2 pl-4">
         {hashtags.map((tag, index) => (

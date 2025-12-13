@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { DraggableImage } from './components/DraggableImage';
@@ -171,8 +170,6 @@ const App: React.FC = () => {
       startY: 0, 
       initialItemX: 0, 
       initialItemY: 0, 
-      initialViewX: 0, 
-      initialViewY: 0, 
       initialViewX: 0, 
       initialViewY: 0, 
       hasMoved: false 
@@ -1213,7 +1210,7 @@ const App: React.FC = () => {
             {isMultiSelection && (
                 <div className="p-4 flex-1 flex flex-col">
                     <div className="mb-4 pb-2 border-b border-black flex justify-between items-center">
-                        <span className="font-mono text-xs font-bold uppercase">>> BATCH_SELECTION ({selectedIds.size})</span>
+                        <span className="font-mono text-xs font-bold uppercase">&gt;&gt; BATCH_SELECTION ({selectedIds.size})</span>
                         <button onClick={handleBulkDelete} className="text-[10px] text-red-500 hover:bg-red-100 px-2 py-1 uppercase border border-transparent hover:border-red-200">
                             Clear Selected
                         </button>
