@@ -2,6 +2,8 @@
 import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { ImagePreview, GenerationResult, CaptionStyle, Persona, GeminiModel } from "../types";
 
+declare var process: any;
+
 // Strict Schema Definition for robust JSON generation
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
@@ -58,7 +60,7 @@ HASHTAG STRATEGY:
 3. RELEVANCE: Ensure tags strictly relate to the visual content.
 `;
 
-const generatePoeticInstruction = (p: Persona) => `
+const generatePoeticInstruction = (_p: Persona) => `
 You are a sharp, intelligent observer with a confident, slightly dry wit.
 Ignore the user's specific "Persona" details. In this mode, you embody pure "Observational Wit".
 

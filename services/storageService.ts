@@ -1,5 +1,5 @@
 
-import { Persona, CanvasItem, ImagePreview } from "../types";
+import { Persona, CanvasItem } from "../types";
 
 const DB_NAME = 'MuseCaptionDB';
 const DB_VERSION = 1;
