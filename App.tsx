@@ -136,6 +136,13 @@ const App: React.FC = () => {
 
   // VIEWPORT STATE (Zoom & Pan)
   const [view, setView] = useState<ViewState>({ x: 0, y: 0, scale: 1 });
+  const viewRef = useRef(view); // Ref to hold latest view state for event listener
+  
+  // Sync viewRef with state
+  useEffect(() => {
+      viewRef.current = view;
+  }, [view]);
+
   const [isSpacePressed, setIsSpacePressed] = useState(false);
 
   // Selection Box State
@@ -576,26 +583,41 @@ const App: React.FC = () => {
   };
 
   // --- MOUSE / TOUCH / DRAG HANDLERS ---
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey || e.metaKey || !e.shiftKey) { // Zoom
-        e.preventDefault();
-        const zoomSensitivity = 0.001;
-        const delta = -e.deltaY * zoomSensitivity;
-        const newScale = Math.min(Math.max(view.scale * (1 + delta), 0.1), 5);
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
+  // Native wheel handler attached via ref in useEffect to support non-passive listeners
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onWheel = (e: WheelEvent) => {
+        e.preventDefault(); // Prevent native browser scroll/zoom
+        const currentView = viewRef.current;
         
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const worldX = (mouseX - view.x) / view.scale;
-        const worldY = (mouseY - view.y) / view.scale;
-        const newViewX = mouseX - worldX * newScale;
-        const newViewY = mouseY - worldY * newScale;
-        setView({ scale: newScale, x: newViewX, y: newViewY });
-    } else {
-        setView(prev => ({ ...prev, x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
-    }
-  };
+        if (e.ctrlKey || e.metaKey || !e.shiftKey) { // Zoom
+            const zoomSensitivity = 0.001;
+            const delta = -e.deltaY * zoomSensitivity;
+            const newScale = Math.min(Math.max(currentView.scale * (1 + delta), 0.1), 5);
+            
+            const rect = canvas.getBoundingClientRect();
+            
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const worldX = (mouseX - currentView.x) / currentView.scale;
+            const worldY = (mouseY - currentView.y) / currentView.scale;
+            
+            const newViewX = mouseX - worldX * newScale;
+            const newViewY = mouseY - worldY * newScale;
+            
+            setView({ scale: newScale, x: newViewX, y: newViewY });
+        } else {
+            // Pan
+            setView(prev => ({ ...prev, x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+        }
+    };
+
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, []);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -1094,7 +1116,6 @@ const App: React.FC = () => {
         onMouseDown={handleCanvasMouseDown}
         onTouchStart={handleTouchStart}
         onContextMenu={handleCanvasContextMenu}
-        onWheel={handleWheel}
         onDragEnter={onDragEnter}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
