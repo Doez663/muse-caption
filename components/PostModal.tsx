@@ -153,4 +153,13 @@ export const PostModal: React.FC<PostModalProps> = ({
                 <button
                     onClick={onGenerate}
                     disabled={loading}
-                    className="w-full py-3 md:py-2 bg-blue-700 text-white font-bold border-2 border-white shadow-[2px_2px_0px_black] active:shadow-[inset_2px_2px_0px_black] active:translate-y-[1px] disabled:opacity-5
+                    className="w-full py-3 md:py-2 bg-blue-700 text-white font-bold border-2 border-white shadow-[2px_2px_0px_black] active:shadow-[inset_2px_2px_0px_black] active:translate-y-[1px] disabled:opacity-50"
+                >
+                    {loading ? 'GENERATING...' : 'GENERATE'}
+                </button>
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};
