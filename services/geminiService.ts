@@ -220,8 +220,9 @@ export const generateCaptions = async (
     : generateSocialInstruction(persona);
 
   let attempt = 0;
-  const maxAttempts = 10; 
+  const maxAttempts = 5; // Reduced from 10 to be less aggressive
   let usedModel = model;
+  let lastError: any = null;
 
   while (attempt < maxAttempts) {
     if (signal?.aborted) {
@@ -288,6 +289,7 @@ export const generateCaptions = async (
       return { captions, hashtags, timestamp: Date.now(), model: usedModel, style: style };
 
     } catch (error: any) {
+      lastError = error;
       if (error.message === "ABORTED") throw error;
 
       let rawStatus = error.status;
@@ -306,7 +308,6 @@ export const generateCaptions = async (
 
       const isQuota = isStatus(429) || errorMessage.includes('429') || errorMessage.includes('quota');
       const isServerSide = isStatus(500) || isStatus(503) || errorMessage.includes('internal') || errorMessage.includes('overloaded');
-      // Fix: Don't retry on 400 location errors immediately, but allow model fallback if possible
       const isLocationError = isStatus(400) && (errorMessage.includes('location') || errorMessage.includes('region'));
       
       const isRetryable = (isQuota || isServerSide) && attempt < maxAttempts - 1;
@@ -322,20 +323,20 @@ export const generateCaptions = async (
           else if (usedModel === GeminiModel.PRO_2_5) { usedModel = GeminiModel.FLASH; }
           else if (usedModel === GeminiModel.FLASH) { usedModel = GeminiModel.LITE; }
           
-          const waitTime = 2000 * Math.pow(1.5, attempt);
+          // Implement exponential backoff with jitter
+          const baseWaitTime = 4000; // Increased base wait time
+          const jitter = Math.random() * 1000;
+          const waitTime = baseWaitTime * Math.pow(2, attempt) + jitter;
+          console.log(`[Auto-Retry] Waiting for ${Math.round(waitTime / 1000)}s before next attempt.`);
           await delay(waitTime);
           attempt++;
           continue;
       }
 
-      if (attempt === maxAttempts - 1 || !isRetryable) {
-        throw error;
-      }
-      
-      attempt++;
-      await delay(2000);
+      // If not retryable or max attempts reached, throw the last known error
+      throw lastError;
     }
   }
 
-  throw new Error("Failed to generate captions after multiple attempts.");
+  throw new Error(`API calls failed after ${maxAttempts} attempts. Last error: ${lastError?.message || 'Unknown'}`);
 };
