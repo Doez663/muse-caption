@@ -8,12 +8,15 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const [apiKey, setApiKey] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
   const [masked, setMasked] = useState(true);
 
   useEffect(() => {
-    // Load existing key
-    const stored = localStorage.getItem('user_gemini_key');
-    if (stored) setApiKey(stored);
+    const storedKey = localStorage.getItem('user_gemini_key');
+    if (storedKey) setApiKey(storedKey);
+    
+    const storedUrl = localStorage.getItem('user_gemini_baseurl');
+    if (storedUrl) setBaseUrl(storedUrl);
   }, []);
 
   const handleSave = () => {
@@ -23,13 +26,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     } else {
       localStorage.removeItem('user_gemini_key');
     }
+
+    if (baseUrl.trim()) {
+        localStorage.setItem('user_gemini_baseurl', baseUrl.trim());
+    } else {
+        localStorage.removeItem('user_gemini_baseurl');
+    }
     onClose();
   };
 
   const handleClear = () => {
     playSound.glitch();
     setApiKey('');
+    setBaseUrl('');
     localStorage.removeItem('user_gemini_key');
+    localStorage.removeItem('user_gemini_baseurl');
   };
 
   return (
@@ -38,16 +49,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         
         {/* Header */}
         <div className="bg-black text-white px-3 py-2 flex justify-between items-center select-none">
-          <span className="text-xs uppercase tracking-wider font-bold">&gt;&gt; SYSTEM_CONFIG // KEY_AUTH</span>
+          <span className="text-xs uppercase tracking-wider font-bold">&gt;&gt; SYSTEM_CONFIG</span>
           <button onClick={onClose} className="hover:text-red-400 text-xs font-bold">[X]</button>
         </div>
 
         {/* Content */}
         <div className="p-6 flex flex-col gap-4">
           
-          <div className="bg-yellow-50 border border-yellow-400 p-3 text-[10px] text-yellow-800 leading-relaxed">
-            <strong>⚠ DATA PRIVACY NOTICE:</strong><br/>
-            Your API Key is stored locally in your browser's LocalStorage. It is never sent to any server other than Google's Gemini API.
+          <div className="bg-blue-50 border border-blue-400 p-3 text-[10px] text-blue-900 leading-relaxed">
+            <strong>⚠ REGION BLOCK FIX:</strong><br/>
+            If you see "400 User location is not supported", please enter a custom Base URL (Proxy).
           </div>
 
           <div>
@@ -69,14 +80,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 {masked ? '👁' : '⚔'}
               </button>
             </div>
-            <a 
-              href="https://aistudio.google.com/app/apikey" 
-              target="_blank" 
-              rel="noreferrer"
-              className="text-[9px] text-gray-500 hover:text-blue-600 hover:underline mt-1 inline-block"
-            >
-              &gt;&gt; GET KEY @ GOOGLE AI STUDIO
-            </a>
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase text-blue-700 font-bold block mb-1">
+              CUSTOM_BASE_URL (OPTIONAL)
+            </label>
+            <input 
+                type="text"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                placeholder="e.g. https://my-proxy.workers.dev"
+                className="w-full bg-white border border-gray-400 p-2 text-xs font-mono outline-none focus:border-blue-600 focus:bg-blue-50 transition-colors"
+            />
+            <div className="text-[9px] text-gray-500 mt-1">
+               Use this if you need to route requests through a proxy.
+            </div>
           </div>
 
         </div>
@@ -87,7 +106,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 onClick={handleClear}
                 className="px-3 py-2 text-[10px] uppercase text-red-600 border border-transparent hover:border-red-600 hover:bg-red-50"
             >
-                REMOVE KEY
+                RESET ALL
             </button>
             <div className="flex gap-2">
                 <button 

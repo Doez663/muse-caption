@@ -93,6 +93,46 @@ TONE EXAMPLES (Aim for these vibes):
 - "vanity is just visual journaling"
 `;
 
+const generateInteractiveInstruction = (_p: Persona) => `
+# STYLE DEFINITION: Interactive Charm
+
+# CORE PHILOSOPHY
+This writing style transforms a social media caption from a passive statement into an active, playful invitation. The goal is to make the audience feel like they are personally invited into a fun game, a shared secret, or a charming challenge. It's about sparking curiosity and desire through skillful interaction, making the audience want to engage, impress, or help.
+
+# KEY TECHNIQUES (The AI must learn and apply these methods)
+
+1.  **The Playful Puzzle:**
+    - **Description:** Frame the caption as a mystery or a guessing game. Use phrases that invite the audience to uncover a hidden reason or story.
+    - **Examples:** "This smile has a reason, can you find out what it is?", "There's a secret in this picture, bet you can't find it.", "Thinking of something, what do you think it is?"
+
+2.  **The Confident Tease:**
+    - **Description:** Make a bold, witty, or charmingly provocative statement about oneself or the situation, and then immediately soften it with a casual, inclusive question like ", right?". This creates a confident yet approachable tone.
+    - **Examples:** "Sometimes after a long day all you need is someone who can cook yummy rice, right?", "This is definitely a 'look twice' kind of outfit, don't you think?"
+
+3.  **The Collaborative Scenario:**
+    - **Description:** Create a scenario where the user appears to need advice, opinions, or help from the audience. This empowers the audience, making them feel valued and eager to contribute.
+    - **Examples:** "Need advice for my first big interview!", "I'm visiting a new city, what's the one place I have to see?", "Help me choose a name for my new plant."
+
+4.  **The Effortless Opener:**
+    - **Description:** As a pattern-interrupt, occasionally use an ultra-simple, disarming phrase. This creates a sense of authenticity, intimacy, and makes the more structured captions feel even more special.
+    - **Examples:** "Heey lol", "Just because.", "Monday again."
+
+# RULES & CONSTRAINTS
+
+- **Grammar & Punctuation:** Use standard, proper grammar and capitalization. The style is clean and polished, not edgy or minimalist.
+- **Tone:** The tone must be confident, playful, and inviting. It should never sound arrogant, desperate, or overly aggressive. It's a charming challenge, not a demand.
+- **Emojis:** Use friendly and expressive emojis (e.g., 🥰, 😊, 🥳, 😉, 🤔, 👀) to add warmth and convey the playful nature of the caption.
+- **Translation:** Provide a Chinese translation for each caption.
+   - It should sound authentic, playful, and engaging (Xiaohongshu interaction style).
+   - Not rigid machine translation.
+
+# GOAL
+The ultimate objective of the "Interactive Charm" style is to generate high levels of genuine engagement (comments, DMs) by making the interaction feel personal, fun, and irresistibly compelling.
+
+# INSTRUCTION
+Analyze the user's uploaded image and then generate 10 caption options by applying one or more of the **Key Techniques** listed above. Provide a variety of options that showcase different techniques.
+`;
+
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const makeApiCall = async (ai: GoogleGenAI, model: string, instruction: string, image: ImagePreview, style: string) => {
@@ -115,7 +155,7 @@ const makeApiCall = async (ai: GoogleGenAI, model: string, instruction: string, 
       systemInstruction: instruction,
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
-      temperature: 0.9, // Increased creativity for emoji variety
+      temperature: 0.9, 
       maxOutputTokens: 4000, 
       safetySettings: [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -127,31 +167,15 @@ const makeApiCall = async (ai: GoogleGenAI, model: string, instruction: string, 
   });
 };
 
-/**
- * Robust JSON cleaner that fixes common LLM output errors:
- * - Markdown backticks
- * - Unquoted keys (JavaScript object style)
- * - Trailing commas
- */
 const cleanAndParseJson = (text: string): any => {
   if (!text) throw new Error("Empty response");
-
-  // 1. Strip Markdown
   let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
-
-  // 2. Extract JSON object
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
-  
   if (start !== -1 && end !== -1) {
     cleaned = cleaned.substring(start, end + 1);
   }
-
-  // 3. Fix Trailing Commas (e.g., "key": "value", } -> "key": "value" })
   cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
-
-  // 4. Fix Unquoted Keys (e.g., { tone: "witty" } -> { "tone": "witty" })
-  // Regex looks for words followed by a colon, ensuring they aren't already quoted
   cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z0-9_]+?)\s*:/g, '$1"$2":');
 
   try {
@@ -172,17 +196,27 @@ export const generateCaptions = async (
   
   // BYOK Logic: Check LocalStorage first, then Env Var
   const userKey = localStorage.getItem('user_gemini_key');
+  const userBaseUrl = localStorage.getItem('user_gemini_baseurl'); // Get Custom Base URL
   
   const envKey = process.env.API_KEY;
   const apiKey = userKey || envKey;
 
   if (!apiKey) {
-    throw new Error("MISSING_API_KEY"); // Specialized error to be caught by UI
+    throw new Error("MISSING_API_KEY");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  // Initialize with optional baseUrl if provided
+  const clientConfig: any = { apiKey };
+  if (userBaseUrl && userBaseUrl.trim().length > 0) {
+      clientConfig.baseUrl = userBaseUrl.trim();
+  }
+
+  const ai = new GoogleGenAI(clientConfig);
+
   const instruction = style === CaptionStyle.POETIC 
     ? generatePoeticInstruction(persona) 
+    : style === CaptionStyle.INTERACTIVE
+    ? generateInteractiveInstruction(persona)
     : generateSocialInstruction(persona);
 
   let attempt = 0;
@@ -201,9 +235,7 @@ export const generateCaptions = async (
         throw new Error("ABORTED");
       }
 
-      // Check for empty candidates (often caused by safety filters)
       if (!response.candidates || response.candidates.length === 0) {
-          // Attempt to extract safety ratings for debugging
           console.warn(`Blocked response from ${usedModel}. Candidates empty.`);
           throw new Error("Safety/Block filter triggered (Empty Candidate)");
       }
@@ -213,7 +245,6 @@ export const generateCaptions = async (
         throw new Error(`No response text received from Gemini (${usedModel}).`);
       }
 
-      // Use robust parser
       let parsed;
       try {
         parsed = cleanAndParseJson(text);
@@ -230,7 +261,6 @@ export const generateCaptions = async (
             const tone = item.tone || "vibe";
             const translation = item.translation || "";
 
-            // CLEANING LOGIC FOR FLASH MODEL HALLUCINATIONS
             if (emoji) {
               text = text.split(emoji).join("").trim();
             }
@@ -255,13 +285,11 @@ export const generateCaptions = async (
          throw new Error("Invalid JSON structure: missing captions");
       }
 
-      // Return result with the actual model used AND the style used
       return { captions, hashtags, timestamp: Date.now(), model: usedModel, style: style };
 
     } catch (error: any) {
       if (error.message === "ABORTED") throw error;
 
-      // DEEP ERROR INSPECTION & ROBUST STATUS EXTRACTION
       let rawStatus = error.status;
       let apiError = error.error || error.body?.error;
 
@@ -274,75 +302,30 @@ export const generateCaptions = async (
       }
       
       const errorMessage = (error.message || apiError?.message || JSON.stringify(error)).toLowerCase();
-      
       const isStatus = (code: number) => rawStatus == code;
 
-      // 1. QUOTA / RATE LIMIT (429)
-      const isQuota = 
-        isStatus(429) || 
-        rawStatus === 'RESOURCE_EXHAUSTED' ||
-        errorMessage.includes('429') ||
-        errorMessage.includes('quota') ||
-        errorMessage.includes('resource_exhausted') ||
-        errorMessage.includes('too many requests');
-
-      // 2. SERVER ERRORS, EMPTY RESPONSE, SAFETY BLOCKS, OR BAD FORMAT
-      const isServerSide = 
-        isStatus(500) || 
-        isStatus(502) || 
-        isStatus(503) || 
-        isStatus(504) ||
-        rawStatus === 'INTERNAL' ||
-        errorMessage.includes('internal server error') ||
-        errorMessage.includes('overloaded') ||
-        errorMessage.includes('no response text') ||
-        errorMessage.includes('safety') || 
-        errorMessage.includes('blocked') ||
-        errorMessage.includes('response did not contain a json object') ||
-        errorMessage.includes('failed to parse api response') ||
-        errorMessage.includes('invalid json structure'); 
+      const isQuota = isStatus(429) || errorMessage.includes('429') || errorMessage.includes('quota');
+      const isServerSide = isStatus(500) || isStatus(503) || errorMessage.includes('internal') || errorMessage.includes('overloaded');
+      // Fix: Don't retry on 400 location errors immediately, but allow model fallback if possible
+      const isLocationError = isStatus(400) && (errorMessage.includes('location') || errorMessage.includes('region'));
       
-      const isNotFound = 
-        isStatus(404) || 
-        errorMessage.includes('not found');
-      
-      const isRetryable = (isQuota || isServerSide || isNotFound) && attempt < maxAttempts - 1;
+      const isRetryable = (isQuota || isServerSide) && attempt < maxAttempts - 1;
 
-      if (isRetryable) {
-          console.log(`[Auto-Retry] Attempt ${attempt + 1} failed with ${usedModel}. Retrying... (${errorMessage.substring(0, 100)}...)`);
-      } else {
-          console.error(`[Fatal] Attempt ${attempt + 1} failed with ${usedModel}.`, error);
+      if (isLocationError) {
+          throw new Error("REGION_BLOCKED");
       }
 
-      // FALLBACK STRATEGY
       if (isRetryable) {
-         // Downgrade Pro 3 -> Pro 2.5
-         if (usedModel === GeminiModel.PRO_3_0) {
-             usedModel = GeminiModel.PRO_2_5;
-             attempt++; await delay(1000); continue;
-         }
-         // Downgrade Pro 2.5 -> Flash
-         if (usedModel === GeminiModel.PRO_2_5) {
-             usedModel = GeminiModel.FLASH;
-             attempt++; await delay(1000); continue;
-         }
-         // Downgrade Flash -> Lite
-         if (usedModel === GeminiModel.FLASH) {
-             usedModel = GeminiModel.LITE;
-             attempt++; await delay(1000); continue;
-         }
-         // SIDEGRADE Lite -> Flash (if Lite is unstable, try standard Flash)
-         if (usedModel === GeminiModel.LITE) {
-             usedModel = GeminiModel.FLASH;
-             attempt++; await delay(1000); continue;
-         }
-
-         const baseWait = 2000 * Math.pow(1.5, attempt); 
-         const jitter = Math.random() * 2000; 
-         const waitTime = Math.min(baseWait + jitter, 60000); 
-         await delay(waitTime);
-         attempt++;
-         continue;
+          console.log(`[Auto-Retry] Attempt ${attempt + 1} failed with ${usedModel}. Retrying...`);
+          // Model fallback logic
+          if (usedModel === GeminiModel.PRO_3_0) { usedModel = GeminiModel.PRO_2_5; }
+          else if (usedModel === GeminiModel.PRO_2_5) { usedModel = GeminiModel.FLASH; }
+          else if (usedModel === GeminiModel.FLASH) { usedModel = GeminiModel.LITE; }
+          
+          const waitTime = 2000 * Math.pow(1.5, attempt);
+          await delay(waitTime);
+          attempt++;
+          continue;
       }
 
       if (attempt === maxAttempts - 1 || !isRetryable) {

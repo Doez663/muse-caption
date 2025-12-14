@@ -34,16 +34,16 @@ export const Header: React.FC<HeaderProps> = ({
             second: '2-digit'
         });
     } catch (e) {
-        // Fallback if timezone is invalid
         return time.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
   };
 
   return (
-    <div className="w-full flex flex-col border-b border-black bg-gray-100 select-none shrink-0">
-      {/* Top Status Bar */}
+    <div className="w-full flex flex-col border-b border-black bg-gray-100 select-none shrink-0 z-30">
+      {/* Top Status Bar (Universal) */}
       <div className="flex justify-between items-center px-2 py-1 bg-blue-700 text-white font-mono text-[10px] uppercase tracking-wider">
-        <span>MUSE_OS v3.1 // ID_MATRIX</span>
+        <span className="hidden md:inline">MUSE_OS v3.1 // ID_MATRIX</span>
+        <span className="md:hidden">MUSE_POCKET v1.0</span>
         <div className="flex items-center gap-3">
             <button onClick={onOpenSettings} className="hover:text-yellow-300 transition-colors">
                 [ CONFIG ]
@@ -52,8 +52,28 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Main Info HUD */}
-      <div className="relative p-3 font-mono text-xs flex gap-3 items-stretch border-b border-black bg-gray-50">
+      {/* MOBILE HEADER: Minimal Info */}
+      <div className="md:hidden flex items-center justify-between p-2 bg-gray-50 border-b border-black">
+         <div className="flex items-center gap-2" onClick={onOpenProfile}>
+            <div className="w-8 h-8 bg-gray-300 border border-black overflow-hidden">
+                {activePersona.avatar ? (
+                     <img src={activePersona.avatar} className="w-full h-full object-cover" />
+                ) : (
+                     <div className="w-full h-full flex items-center justify-center text-[8px]">+</div>
+                )}
+            </div>
+            <div className="flex flex-col">
+                <span className="text-xs font-bold uppercase leading-none">{activePersona.name}</span>
+                <span className="text-[9px] text-gray-500 uppercase leading-none mt-0.5">{activePersona.emojiStyle}</span>
+            </div>
+         </div>
+         <div className="bg-black text-white px-2 py-1 font-mono text-xs border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+            {getPersonaTime()}
+         </div>
+      </div>
+
+      {/* DESKTOP HEADER: Full Dashboard (Hidden on Mobile) */}
+      <div className="hidden md:flex relative p-3 font-mono text-xs gap-3 items-stretch border-b border-black bg-gray-50">
         
         {/* AVATAR SECTION - 100x100 */}
         <div 

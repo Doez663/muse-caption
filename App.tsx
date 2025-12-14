@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { DraggableImage } from './components/DraggableImage';
@@ -36,7 +37,7 @@ const LOADING_MESSAGES = [
   "FINALIZING_OUTPUT_STREAM..."
 ];
 
-const SystemLoader: React.FC<{ onAbort: () => void }> = ({ onAbort }) => {
+const SystemLoader: React.FC<{ onAbort: () => void, isMobile?: boolean }> = ({ onAbort, isMobile }) => {
   const [msgIndex, setMsgIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -62,13 +63,13 @@ const SystemLoader: React.FC<{ onAbort: () => void }> = ({ onAbort }) => {
   }, []);
 
   // Generate ASCII Progress Bar (Reduced length for Sidebar width)
-  const totalChars = 20;
+  const totalChars = isMobile ? 15 : 20;
   const filledChars = Math.floor((progress / 100) * totalChars);
   // Use non-breaking spaces for empty slots to maintain width
   const progressBar = "[" + ">".repeat(filledChars) + ".".repeat(totalChars - filledChars) + "]";
 
   return (
-    <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center cursor-wait select-none text-black">
+    <div className={`absolute inset-0 bg-white/95 backdrop-blur-sm z-[100] flex flex-col items-center justify-center cursor-wait select-none text-black ${isMobile ? 'rounded-t-2xl' : ''}`}>
        <div className="font-mono text-xs flex flex-col gap-2 max-w-[280px] text-center">
           
           {/* Status Line */}
@@ -192,6 +193,7 @@ const App: React.FC = () => {
   });
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   // Derived State
   const activePersona = personas.find(p => p.id === activePersonaId) || personas[0] || DEFAULT_PERSONA;
@@ -258,6 +260,13 @@ const App: React.FC = () => {
     localStorage.setItem('muse_active_persona_id', activePersonaId);
   }, [activePersonaId]);
 
+  // Mobile: Auto-open drawer when item selected
+  useEffect(() => {
+      if (primarySelectedId) {
+          setIsMobileDrawerOpen(true);
+      }
+  }, [primarySelectedId]);
+
   // --- KEYBOARD LISTENERS ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -269,6 +278,7 @@ const App: React.FC = () => {
             setMaximizedItemId(null);
             setShowDisplaySettings(false);
             setContextMenu(null);
+            setIsMobileDrawerOpen(false);
             return;
         }
         if ((e.key === 'Delete' || e.key === 'Backspace') && !isProfileOpen && selectedIds.size > 0) {
@@ -295,31 +305,20 @@ const App: React.FC = () => {
   }, [selectedIds, isProfileOpen, isSpacePressed, dragState.isDragging]);
 
   // --- SYNC VIEW INDEX ON SELECTION CHANGE ---
-  // Fix for bug: When switching to an item that has history for the current style
-  // but is currently viewing a different style's history, the UI would be blank.
   useEffect(() => {
       if (!primarySelectedId) return;
 
       setItems(prev => {
           const item = prev.find(i => i.id === primarySelectedId);
           if (!item || item.history.length === 0) return prev;
-
-          // Helper to check match
           const matchesStyle = (h: any) => h && (h.style === style || (!h.style && style === CaptionStyle.SOCIAL));
-
           const currentEntry = item.history[item.viewIndex];
-
-          // If currently viewing a valid entry for this style, do nothing
           if (matchesStyle(currentEntry)) return prev;
-
-          // Otherwise, find the latest entry that matches the current style
           for (let i = item.history.length - 1; i >= 0; i--) {
               if (matchesStyle(item.history[i])) {
-                  // Found a better view index, update it
                   return prev.map(p => p.id === primarySelectedId ? { ...p, viewIndex: i } : p);
               }
           }
-
           return prev;
       });
   }, [primarySelectedId, style]); 
@@ -559,6 +558,7 @@ const App: React.FC = () => {
       setItems(prev => prev.filter(i => !selectedIds.has(i.id)));
       setSelectedIds(new Set());
       setContextMenu(null);
+      setIsMobileDrawerOpen(false);
   };
 
   const handleToggleModel = () => {
@@ -583,13 +583,12 @@ const App: React.FC = () => {
   };
 
   // --- MOUSE / TOUCH / DRAG HANDLERS ---
-  // Native wheel handler attached via ref in useEffect to support non-passive listeners
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const onWheel = (e: WheelEvent) => {
-        e.preventDefault(); // Prevent native browser scroll/zoom
+        e.preventDefault(); 
         const currentView = viewRef.current;
         
         if (e.ctrlKey || e.metaKey || !e.shiftKey) { // Zoom
@@ -627,6 +626,7 @@ const App: React.FC = () => {
 
       if (e.button === 0 && !isSpacePressed) {
           setSelectedIds(new Set()); 
+          setIsMobileDrawerOpen(false);
           setSelectionBox({
               startX: mouseX,
               startY: mouseY,
@@ -767,7 +767,7 @@ const App: React.FC = () => {
     });
   };
 
-  // --- TOUCH HANDLERS (Kept for trackpad/hybrid laptops, but stripped of mobile-specific layout logic) ---
+  // --- TOUCH HANDLERS ---
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
     const touch = e.touches[0];
@@ -775,11 +775,18 @@ const App: React.FC = () => {
     const itemContainer = target.closest('[data-item-id]');
     
     if (itemContainer) {
-        e.preventDefault();
+        // e.preventDefault(); // allow click propagation for mobile selection
         const id = (itemContainer as HTMLElement).dataset.itemId!;
         const item = items.find(i => i.id === id);
         if (!item) return;
-        if (!selectedIds.has(id)) setSelectedIds(new Set([id]));
+        
+        // Mobile Logic: If tapping a different item, select it.
+        // Dragging logic is less prioritized on mobile canvas, focus on selection.
+        if (!selectedIds.has(id)) {
+            setSelectedIds(new Set([id]));
+            playSound.select();
+        }
+
         setDragState({
             isDragging: true,
             type: 'ITEM',
@@ -793,6 +800,7 @@ const App: React.FC = () => {
             hasMoved: false
         });
     } else {
+        setIsMobileDrawerOpen(false); // Tap canvas to close drawer
         setDragState({
             isDragging: true,
             type: 'CANVAS',
@@ -872,6 +880,7 @@ const App: React.FC = () => {
         return next;
     });
     setContextMenu(null);
+    setIsMobileDrawerOpen(false);
   };
 
   const handleMaximizeItem = (id: string) => {
@@ -889,9 +898,6 @@ const App: React.FC = () => {
   const handlePrevHistory = () => {
     playSound.click();
     if (!selectedItem) return;
-    
-    // Find PREVIOUS history item that matches CURRENT style
-    // Iterate backwards from current viewIndex - 1
     for (let i = selectedItem.viewIndex - 1; i >= 0; i--) {
         const h = selectedItem.history[i];
         if (h.style === style || (!h.style && style === CaptionStyle.SOCIAL)) {
@@ -904,9 +910,6 @@ const App: React.FC = () => {
   const handleNextHistory = () => {
     playSound.click();
     if (!selectedItem) return;
-
-    // Find NEXT history item that matches CURRENT style
-    // Iterate forwards from current viewIndex + 1
     for (let i = selectedItem.viewIndex + 1; i < selectedItem.history.length; i++) {
         const h = selectedItem.history[i];
         if (h.style === style || (!h.style && style === CaptionStyle.SOCIAL)) {
@@ -919,14 +922,9 @@ const App: React.FC = () => {
   const handleStyleChange = (newStyle: CaptionStyle) => {
     playSound.click();
     setStyle(newStyle);
-
-    // When changing style, try to find the LATEST history entry that matches this style
-    // and switch viewIndex to it.
     if (selectedItem && selectedItem.history.length > 0) {
-        // Iterate backwards from end to find most recent
         for (let i = selectedItem.history.length - 1; i >= 0; i--) {
              const h = selectedItem.history[i];
-             // Match style OR assume legacy items (undefined style) are Social
              if (h.style === newStyle || (!h.style && newStyle === CaptionStyle.SOCIAL)) {
                  setItems(prev => prev.map(item => item.id === selectedItem.id ? { ...item, viewIndex: i } : item));
                  return;
@@ -993,7 +991,7 @@ const App: React.FC = () => {
       setView({ x: 50, y: 50, scale: 1 });
   }
   
-  // Calculate navigation state for currently selected style
+  // Calculate navigation state
   let canGoPrev = false;
   let canGoNext = false;
   let styleVersionCount = 0;
@@ -1015,260 +1013,15 @@ const App: React.FC = () => {
       }
   }
 
-  return (
-    <div 
-      className="flex w-screen h-screen bg-[#E0E0E0] text-black overflow-hidden font-sans"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onClick={closeContextMenu} 
-    >
-      
-      {/* Hidden File Input for Manual Import via Context Menu */}
-      <input 
-          type="file" 
-          ref={uploadInputRef}
-          onChange={handleManualUpload}
-          accept="image/*"
-          multiple
-          className="hidden"
-      />
-
-      {/* Settings Modal */}
-      {isSettingsOpen && (
-        <SettingsModal onClose={() => setIsSettingsOpen(false)} />
-      )}
-
-      {/* Persona Modal */}
-      {isProfileOpen && (
-        <PersonaProfile 
-          personas={personas}
-          activeId={activePersonaId}
-          onUpdate={handleUpdatePersona}
-          onCreate={handleCreatePersona}
-          onDelete={handleDeletePersona}
-          onSetActive={setActivePersonaId}
-          onClose={() => setIsProfileOpen(false)} 
-        />
-      )}
-
-      {/* Maximized View Modal */}
-      {maximizedItem && (
-        <div 
-            className="fixed inset-0 z-[2000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-8 font-mono" 
-            onClick={() => setMaximizedItemId(null)}
-        >
-           <div 
-                className="relative bg-gray-100 border border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col max-w-[90vw] max-h-[90vh]"
-                onClick={e => e.stopPropagation()}
-           >
-              <div className="flex justify-between items-center bg-blue-700 text-white p-2 border-b border-black">
-                  <span>PREVIEW: {maximizedItem.image.file.name.toUpperCase()}</span>
-                  <button onClick={() => setMaximizedItemId(null)} className="hover:text-red-300 px-2">[CLOSE]</button>
-              </div>
-              <div className="p-4 overflow-auto flex items-center justify-center bg-white min-h-[300px]">
-                  <img src={maximizedItem.image.url} className="max-w-full max-h-[70vh] object-contain shadow-lg" />
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Context Menus */}
-      {contextMenu && contextMenu.visible && (
-        <div 
-            className="fixed z-[9999] bg-white border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col min-w-[160px] py-1 font-mono text-xs"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-             {contextMenu.type === 'CANVAS' && (
-                 <>
-                    <button onClick={handleTriggerUpload} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left font-bold border-b border-gray-100">
-                        + IMPORT_IMAGES
-                    </button>
-                    <button onClick={arrangeGrid} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">ARRANGE_GRID</button>
-                    <button onClick={resetView} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">RESET_VIEW</button>
-                    <button onClick={() => setShowDisplaySettings(true)} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left border-t border-gray-200">VIEW_SETTINGS</button>
-                 </>
-             )}
-             {contextMenu.type === 'ITEM' && contextMenu.itemId && (
-                 <>
-                    <button onClick={() => handleMaximizeItem(contextMenu.itemId!)} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left font-bold">OPEN_PREVIEW</button>
-                    <button onClick={handleRefresh} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">REGENERATE_CAPTION</button>
-                    <button onClick={() => handleDeleteItem(contextMenu.itemId!)} className="px-3 py-2 hover:bg-red-600 hover:text-white text-left border-t border-gray-200 text-red-600">DELETE</button>
-                 </>
-             )}
-             {contextMenu.type === 'MULTI' && (
-                 <>
-                    <div className="px-3 py-2 text-gray-400 bg-gray-50 border-b border-gray-100">
-                        SELECTION_SIZE: {selectedIds.size}
-                    </div>
-                    <button onClick={handleBulkGenerate} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">BATCH_GENERATE</button>
-                    <button onClick={handleBulkDelete} className="px-3 py-2 hover:bg-red-600 hover:text-white text-left border-t border-gray-200 text-red-600">BATCH_DELETE</button>
-                 </>
-             )}
-        </div>
-      )}
-
-      {/* --- CANVAS AREA (LEFT/CENTER) --- */}
-      <div 
-        className="flex-1 relative bg-[#E0E0E0] overflow-hidden cursor-crosshair touch-none"
-        ref={canvasRef}
-        onMouseDown={handleCanvasMouseDown}
-        onTouchStart={handleTouchStart}
-        onContextMenu={handleCanvasContextMenu}
-        onDragEnter={onDragEnter}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        onDrop={onDrop}
-      >
-        {/* Grid Background */}
-        <div 
-            className="absolute inset-0 pointer-events-none opacity-[0.03]"
-            style={{
-                backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)',
-                backgroundSize: `${40 * view.scale}px ${40 * view.scale}px`, // Dynamic Size
-                backgroundPosition: `${view.x}px ${view.y}px`, // Dynamic Pan
-            }}
-        />
-
-        {/* Drag Hint Overlay */}
-        {isDraggingFile && (
-            <div className="absolute inset-0 z-50 bg-blue-600/20 backdrop-blur-sm border-4 border-blue-600 border-dashed m-4 flex items-center justify-center pointer-events-none">
-                <div className="text-4xl font-bold text-blue-800 bg-white/80 px-8 py-4 shadow-xl">
-                    DROP_IMAGE_DATA
-                </div>
-            </div>
-        )}
-
-        {/* Display Settings Panel */}
-        {showDisplaySettings && (
-             <div className="absolute top-4 left-4 z-[100] bg-white border border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-64 text-xs font-mono">
-                 <div className="flex justify-between items-center mb-4">
-                     <span className="font-bold uppercase">VIEW_CONFIG</span>
-                     <button onClick={() => setShowDisplaySettings(false)} className="text-red-500 hover:underline">[X]</button>
-                 </div>
-                 <div className="space-y-4">
-                     <div>
-                         <label className="block mb-1">ICON_SIZE ({iconSize}px)</label>
-                         <input type="range" min="80" max="300" value={iconSize} onChange={(e) => setIconSize(Number(e.target.value))} className="w-full" />
-                     </div>
-                     <div>
-                         <label className="block mb-1">GRID_GAP ({gridGap}px)</label>
-                         <input type="range" min="0" max="100" value={gridGap} onChange={(e) => setGridGap(Number(e.target.value))} className="w-full" />
-                     </div>
-                     <div className="flex items-center gap-2">
-                         <input type="checkbox" checked={snapToGrid} onChange={(e) => setSnapToGrid(e.target.checked)} />
-                         <label>SNAP_TO_GRID</label>
-                     </div>
-                 </div>
-             </div>
-        )}
-
-        {/* Canvas Items */}
-        <div 
-            style={{ 
-                transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
-                transformOrigin: '0 0',
-                width: '100%',
-                height: '100%',
-                position: 'absolute',
-                top: 0,
-                left: 0
-            }}
-        >
-            {items.map(item => (
-                <DraggableImage 
-                    key={item.id} 
-                    item={item} 
-                    isSelected={selectedIds.has(item.id)}
-                    width={iconSize}
-                    onMouseDown={handleItemMouseDown}
-                    onDelete={handleDeleteItem}
-                    onMaximize={handleMaximizeItem}
-                    onContextMenu={handleItemContextMenu}
-                    onDoubleClick={handleItemDoubleClick}
-                />
-            ))}
-        </div>
-
-        {/* Selection Box Visual */}
-        {selectionBox && selectionBox.active && (
-            <div 
-                className="absolute border border-blue-600 bg-blue-400/20 z-[9999] pointer-events-none"
-                style={{
-                    left: Math.min(selectionBox.startX, selectionBox.currentX),
-                    top: Math.min(selectionBox.startY, selectionBox.currentY),
-                    width: Math.abs(selectionBox.currentX - selectionBox.startX),
-                    height: Math.abs(selectionBox.currentY - selectionBox.startY),
-                }}
-            />
-        )}
-      </div>
-
-      {/* --- RIGHT SIDEBAR (CONTROLS & RESULTS) --- */}
-      <div className="w-[380px] h-full border-l border-black bg-white flex flex-col z-20 shadow-[-4px_0px_10px_rgba(0,0,0,0.1)] shrink-0 relative">
-         <Header 
-            personas={personas} 
-            activePersona={activePersona}
-            onOpenProfile={() => setIsProfileOpen(true)}
-            onSwitchPersona={(id) => { playSound.click(); setActivePersonaId(id); }}
-            onOpenSettings={() => { playSound.click(); setIsSettingsOpen(true); }}
-         />
-
-         {/* Content Area */}
-         <div className="flex-1 overflow-y-auto no-scrollbar relative flex flex-col">
-            
+  // --- RENDER CONTENT AREA (Used in both Sidebar and Mobile Drawer) ---
+  const renderEditorContent = (isMobile = false) => (
+      <div className={`flex flex-col h-full ${isMobile ? 'pb-24' : ''}`}> {/* Padding bottom on mobile for FAB/Nav */}
             {/* Empty State */}
             {selectedIds.size === 0 && (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-8 text-center opacity-50">
                     <div className="text-4xl mb-2 font-light">∅</div>
                     <div className="text-xs font-mono uppercase tracking-widest">
-                        NO_SELECTION<br/>SELECT_OBJECT_TO_ANALYZE
-                    </div>
-                </div>
-            )}
-
-            {/* Multi Selection State */}
-            {isMultiSelection && (
-                <div className="p-4 flex-1 flex flex-col">
-                    <div className="mb-4 pb-2 border-b border-black flex justify-between items-center">
-                        <span className="font-mono text-xs font-bold uppercase">&gt;&gt; BATCH_SELECTION ({selectedIds.size})</span>
-                        <button onClick={handleBulkDelete} className="text-[10px] text-red-500 hover:bg-red-100 px-2 py-1 uppercase border border-transparent hover:border-red-200">
-                            Clear Selected
-                        </button>
-                    </div>
-                    
-                    {/* Grid of Thumbnails - COLORED & FIXED SIZE */}
-                    <div className="flex flex-wrap gap-2 content-start mb-4">
-                         {selectedItemsList.map(item => (
-                             <div 
-                                key={item.id} 
-                                className="relative group w-20 h-20 shadow-sm border border-gray-300 bg-gray-100 cursor-pointer hover:border-blue-500 transition-colors"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Click a thumb in multi-view to select only that one?
-                                    // Or maybe just highlight? Let's assume select single.
-                                    setSelectedIds(new Set([item.id]));
-                                }}
-                             >
-                                 <img 
-                                    src={item.image.url} 
-                                    className="w-full h-full object-cover" // Full color, consistent size
-                                    style={{ imageRendering: 'pixelated' }}
-                                 />
-                                 <div className="absolute inset-0 bg-blue-500/20 opacity-0 group-hover:opacity-100 pointer-events-none" />
-                             </div>
-                         ))}
-                    </div>
-
-                    <div className="mt-auto border-t border-black pt-4">
-                        <button 
-                            onClick={handleBulkGenerate}
-                            disabled={loading}
-                            className="w-full py-4 bg-black text-white font-mono text-sm uppercase hover:bg-blue-700 transition-all active:scale-[0.99]"
-                        >
-                            {loading ? "PROCESSING..." : `GENERATE ALL (${selectedIds.size})`}
-                        </button>
+                        NO_SELECTION<br/>TAP_OBJECT
                     </div>
                 </div>
             )}
@@ -1276,9 +1029,9 @@ const App: React.FC = () => {
             {/* Single Selection State */}
             {!isMultiSelection && selectedItem && (
                 <>
-                    {/* Item Context Header - Added Thumbnail here for consistency */}
+                    {/* Item Context Header - Desktop uses Sidebar, Mobile uses Drawer Header */}
+                    {!isMobile && (
                     <div className="p-3 border-b border-gray-200 bg-gray-50 flex gap-3 items-center">
-                         {/* Mini Thumbnail for Single View Consistency */}
                          <div className="w-20 h-20 border border-gray-300 shadow-sm shrink-0 bg-white">
                              <img 
                                 src={selectedItem.image.url} 
@@ -1286,7 +1039,6 @@ const App: React.FC = () => {
                                 style={{ imageRendering: 'pixelated' }}
                              />
                          </div>
-                         
                          <div className="flex-1 min-w-0 font-mono">
                              <div className="text-[10px] text-gray-500 uppercase">TARGET_ID</div>
                              <div className="text-xs font-bold truncate text-blue-700" title={selectedItem.image.file.name}>
@@ -1302,9 +1054,10 @@ const App: React.FC = () => {
                              </div>
                          </div>
                     </div>
+                    )}
 
                     {/* Controls */}
-                    <div className="p-3 border-b border-black bg-white space-y-3">
+                    <div className="p-3 border-b border-black bg-white space-y-3 shrink-0">
                         {/* Style Selector */}
                         <div className="grid grid-cols-2 gap-2">
                             {Object.values(CaptionStyle).map((s) => (
@@ -1338,8 +1091,15 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Results Area */}
-                    <div className="flex-1 overflow-y-auto bg-white min-h-0">
-                        {/* History Navigation - Filtered by Style */}
+                    <div className="flex-1 overflow-y-auto bg-white min-h-0 relative">
+                         {/* Loading Overlay - Inside Results Area */}
+                        {loading && (
+                            <div className="absolute inset-0 z-20">
+                                <SystemLoader onAbort={handleCancelGeneration} isMobile={isMobile} />
+                            </div>
+                        )}
+
+                        {/* History Navigation */}
                         {styleVersionCount > 0 && (
                             <div className="sticky top-0 z-10 bg-gray-100 border-b border-gray-200 px-3 py-1 flex justify-between items-center text-[10px] font-mono">
                                 <button 
@@ -1397,7 +1157,7 @@ const App: React.FC = () => {
                     </div>
                     
                     {/* Generate Button Footer */}
-                    <div className="p-3 border-t border-black bg-gray-50">
+                    <div className="p-3 border-t border-black bg-gray-50 shrink-0">
                         <button
                             onClick={() => handleGenerate([selectedItem])}
                             disabled={loading}
@@ -1423,12 +1183,225 @@ const App: React.FC = () => {
                     </div>
                 </>
             )}
-            
-            {/* Loading Overlay - INSIDE CONTENT CONTAINER */}
-            {loading && (
-                <SystemLoader onAbort={handleCancelGeneration} />
-            )}
+  </div>
+  );
+
+  return (
+    <div 
+      className="flex flex-col md:flex-row w-screen h-screen bg-[#E0E0E0] text-black overflow-hidden font-sans"
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onClick={closeContextMenu} 
+    >
+      
+      {/* Hidden File Input for Manual Import via Context Menu / FAB */}
+      <input 
+          type="file" 
+          ref={uploadInputRef}
+          onChange={handleManualUpload}
+          accept="image/*"
+          multiple
+          className="hidden"
+      />
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+      )}
+
+      {/* Persona Modal */}
+      {isProfileOpen && (
+        <PersonaProfile 
+          personas={personas}
+          activeId={activePersonaId}
+          onUpdate={handleUpdatePersona}
+          onCreate={handleCreatePersona}
+          onDelete={handleDeletePersona}
+          onSetActive={setActivePersonaId}
+          onClose={() => setIsProfileOpen(false)} 
+        />
+      )}
+
+      {/* Maximized View Modal */}
+      {maximizedItem && (
+        <div 
+            className="fixed inset-0 z-[2000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-8 font-mono" 
+            onClick={() => setMaximizedItemId(null)}
+        >
+           <div 
+                className="relative bg-gray-100 border border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col max-w-[90vw] max-h-[90vh]"
+                onClick={e => e.stopPropagation()}
+           >
+              <div className="flex justify-between items-center bg-blue-700 text-white p-2 border-b border-black">
+                  <span>PREVIEW: {maximizedItem.image.file.name.toUpperCase()}</span>
+                  <button onClick={() => setMaximizedItemId(null)} className="hover:text-red-300 px-2">[CLOSE]</button>
+              </div>
+              <div className="p-4 overflow-auto flex items-center justify-center bg-white min-h-[300px]">
+                  <img src={maximizedItem.image.url} className="max-w-full max-h-[70vh] object-contain shadow-lg" />
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Context Menus (Desktop) */}
+      {contextMenu && contextMenu.visible && (
+        <div 
+            className="fixed z-[9999] bg-white border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col min-w-[160px] py-1 font-mono text-xs"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+             {contextMenu.type === 'CANVAS' && (
+                 <>
+                    <button onClick={handleTriggerUpload} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left font-bold border-b border-gray-100">
+                        + IMPORT_IMAGES
+                    </button>
+                    <button onClick={arrangeGrid} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">ARRANGE_GRID</button>
+                    <button onClick={resetView} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">RESET_VIEW</button>
+                    <button onClick={() => setShowDisplaySettings(true)} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left border-t border-gray-200">VIEW_SETTINGS</button>
+                 </>
+             )}
+             {contextMenu.type === 'ITEM' && contextMenu.itemId && (
+                 <>
+                    <button onClick={() => handleMaximizeItem(contextMenu.itemId!)} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left font-bold">OPEN_PREVIEW</button>
+                    <button onClick={handleRefresh} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">REGENERATE_CAPTION</button>
+                    <button onClick={() => handleDeleteItem(contextMenu.itemId!)} className="px-3 py-2 hover:bg-red-600 hover:text-white text-left border-t border-gray-200 text-red-600">DELETE</button>
+                 </>
+             )}
+        </div>
+      )}
+
+      {/* --- DESKTOP SIDEBAR (Visible on MD+) --- */}
+      <div className="hidden md:flex order-2 w-[380px] h-full border-l border-black bg-white flex-col z-20 shadow-[-4px_0px_10px_rgba(0,0,0,0.1)] shrink-0 relative">
+         <Header 
+            personas={personas} 
+            activePersona={activePersona}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onSwitchPersona={(id) => { playSound.click(); setActivePersonaId(id); }}
+            onOpenSettings={() => { playSound.click(); setIsSettingsOpen(true); }}
+         />
+         <div className="flex-1 overflow-y-auto no-scrollbar relative flex flex-col">
+            {renderEditorContent(false)}
          </div>
+      </div>
+
+      {/* --- MOBILE HEADER & CANVAS WRAPPER --- */}
+      <div className="flex-1 flex flex-col relative w-full h-full overflow-hidden">
+          {/* Mobile Header (Only visible on mobile) */}
+          <div className="md:hidden">
+            <Header 
+                personas={personas} 
+                activePersona={activePersona}
+                onOpenProfile={() => setIsProfileOpen(true)}
+                onSwitchPersona={(id) => { playSound.click(); setActivePersonaId(id); }}
+                onOpenSettings={() => { playSound.click(); setIsSettingsOpen(true); }}
+            />
+          </div>
+
+          {/* Canvas Area */}
+          <div 
+            className="flex-1 relative bg-[#E0E0E0] overflow-hidden cursor-crosshair touch-none"
+            ref={canvasRef}
+            onMouseDown={handleCanvasMouseDown}
+            onTouchStart={handleTouchStart}
+            onContextMenu={handleCanvasContextMenu}
+            onDragEnter={onDragEnter}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+          >
+            <div 
+                className="absolute inset-0 pointer-events-none opacity-[0.03]"
+                style={{
+                    backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)',
+                    backgroundSize: `${40 * view.scale}px ${40 * view.scale}px`,
+                    backgroundPosition: `${view.x}px ${view.y}px`,
+                }}
+            />
+
+            {/* Canvas Items */}
+            <div 
+                style={{ 
+                    transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+                    transformOrigin: '0 0',
+                    width: '100%',
+                    height: '100%',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0
+                }}
+            >
+                {items.map(item => (
+                    <DraggableImage 
+                        key={item.id} 
+                        item={item} 
+                        isSelected={selectedIds.has(item.id)}
+                        width={iconSize}
+                        onMouseDown={handleItemMouseDown}
+                        onDelete={handleDeleteItem}
+                        onMaximize={handleMaximizeItem}
+                        onContextMenu={handleItemContextMenu}
+                        onDoubleClick={handleItemDoubleClick}
+                    />
+                ))}
+            </div>
+            
+            {/* Mobile Empty State Hint */}
+            <div className="md:hidden absolute bottom-24 left-1/2 -translate-x-1/2 text-[10px] text-gray-400 font-mono pointer-events-none select-none opacity-50">
+               {items.length === 0 ? "TAP (+) TO UPLOAD" : "TAP OBJECT TO EDIT"}
+            </div>
+          </div>
+          
+          {/* --- MOBILE BOTTOM SHEET (DRAWER) --- */}
+          {/* Sliding panel that appears when an item is selected on mobile */}
+          <div 
+             className={`
+                md:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t-2 border-black rounded-t-2xl shadow-[0_-5px_20px_rgba(0,0,0,0.2)]
+                transform transition-transform duration-300 ease-out flex flex-col
+                ${isMobileDrawerOpen ? 'translate-y-0 h-[85vh]' : 'translate-y-full h-0'}
+             `}
+          >
+             {/* Drawer Handle / Close */}
+             <div 
+                className="w-full h-8 flex items-center justify-center bg-gray-100 rounded-t-2xl border-b border-gray-200 cursor-pointer shrink-0"
+                onClick={() => setIsMobileDrawerOpen(false)}
+             >
+                <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+             </div>
+             
+             {/* Content */}
+             <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                {renderEditorContent(true)}
+             </div>
+          </div>
+
+          {/* --- MOBILE BOTTOM NAV BAR --- */}
+          {/* Persistent Dock at bottom */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-black flex justify-around items-center z-50 px-2 pb-2 safe-area-bottom">
+               <button 
+                  onClick={() => { setIsMobileDrawerOpen(false); resetView(); }}
+                  className="flex flex-col items-center gap-1 p-2 text-gray-500 hover:text-black"
+               >
+                   <span className="text-xl">⊞</span>
+                   <span className="text-[8px] font-mono font-bold uppercase">GRID</span>
+               </button>
+
+               {/* FAB: Upload Button (Center) */}
+               <button 
+                  onClick={handleTriggerUpload}
+                  className="mb-6 w-14 h-14 rounded-full bg-blue-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center active:scale-95 transition-transform"
+               >
+                   <span className="text-2xl font-light">+</span>
+               </button>
+
+               <button 
+                  onClick={() => { setIsMobileDrawerOpen(false); setIsProfileOpen(true); }}
+                  className="flex flex-col items-center gap-1 p-2 text-gray-500 hover:text-black"
+               >
+                   <span className="text-xl">☺</span>
+                   <span className="text-[8px] font-mono font-bold uppercase">ID</span>
+               </button>
+          </div>
 
       </div>
     </div>

@@ -2,6 +2,7 @@
 export enum CaptionStyle {
   SOCIAL = 'Social',
   POETIC = 'One-Liner',
+  INTERACTIVE = 'Interactive',
 }
 
 export enum GeminiModel {
