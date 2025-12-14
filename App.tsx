@@ -150,10 +150,9 @@ const App: React.FC = () => {
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
 
   // Display Settings
-  const [iconSize, setIconSize] = useState(150);
-  const [gridGap, setGridGap] = useState(20);
-  const [snapToGrid, setSnapToGrid] = useState(false);
-  const [showDisplaySettings, setShowDisplaySettings] = useState(false);
+  const [iconSize] = useState(150);
+  const [gridGap] = useState(20);
+  const [snapToGrid] = useState(false);
 
   // Dragging State
   const [isDraggingFile, setIsDraggingFile] = useState(false); // External file drop
@@ -200,7 +199,6 @@ const App: React.FC = () => {
   const primarySelectedId = selectedIds.size === 1 ? Array.from(selectedIds)[0] : null;
   const selectedItem = items.find(i => i.id === primarySelectedId);
   const isMultiSelection = selectedIds.size > 1;
-  const selectedItemsList = items.filter(i => selectedIds.has(i.id));
 
   // Logic to determine if current history item matches current style
   const rawCurrentResult = selectedItem && selectedItem.history.length > 0 
@@ -276,7 +274,6 @@ const App: React.FC = () => {
         }
         if (e.key === 'Escape') {
             setMaximizedItemId(null);
-            setShowDisplaySettings(false);
             setContextMenu(null);
             setIsMobileDrawerOpen(false);
             return;
@@ -546,11 +543,6 @@ const App: React.FC = () => {
             abortControllerRef.current = null;
         }
     }
-  };
-
-  const handleBulkGenerate = () => {
-      const targets = items.filter(i => selectedIds.has(i.id));
-      if (targets.length > 0) handleGenerate(targets);
   };
 
   const handleBulkDelete = () => {
@@ -1245,6 +1237,13 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Drag & Drop Overlay */}
+      {isDraggingFile && (
+          <div className="fixed inset-0 z-[2000] bg-blue-500/20 backdrop-blur-sm border-4 border-dashed border-white flex items-center justify-center pointer-events-none">
+              <div className="text-white text-2xl font-bold uppercase tracking-widest bg-black/50 px-8 py-4">Drop to Upload</div>
+          </div>
+      )}
+
       {/* Context Menus (Desktop) */}
       {contextMenu && contextMenu.visible && (
         <div 
@@ -1258,7 +1257,6 @@ const App: React.FC = () => {
                     </button>
                     <button onClick={arrangeGrid} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">ARRANGE_GRID</button>
                     <button onClick={resetView} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left">RESET_VIEW</button>
-                    <button onClick={() => setShowDisplaySettings(true)} className="px-3 py-2 hover:bg-blue-600 hover:text-white text-left border-t border-gray-200">VIEW_SETTINGS</button>
                  </>
              )}
              {contextMenu.type === 'ITEM' && contextMenu.itemId && (
